@@ -1,0 +1,53 @@
+{
+ "description": "Lines of the predecessor [3] at the pinned commit that are cited without quotation, with the fragment each must contain and the construct it holds.",
+ "fragments": [
+  {
+   "path": "graph_coarsening.py",
+   "line": 272,
+   "fragment": "node_i = current_graph.nodes[edge.u_id]",
+   "construct": "D_ij evaluated from the edge's stored endpoints"
+  },
+  {
+   "path": "graph_coarsening.py",
+   "line": 278,
+   "fragment": "temporal_slack = max(0, node_j.e - (node_i.t + node_i.s + tau_ij))",
+   "construct": "waiting term of D_ij in that orientation"
+  },
+  {
+   "path": "graph_coarsening.py",
+   "line": 362,
+   "fragment": "all_neighbors_ids = (neighbors_of_i.union(neighbors_of_j))",
+   "construct": "reconnection over a set of node identifiers"
+  },
+  {
+   "path": "graph_coarsening.py",
+   "line": 405,
+   "fragment": "sorted_edges = sorted(G_prime.edges, key=lambda e: e.D_ij)",
+   "construct": "edges sorted on the score alone"
+  },
+  {
+   "path": "graph_coarsening.py",
+   "line": 436,
+   "fragment": "pi_order, _ = self._compute_slacks_and_order(G_prime, node_i, node_j)",
+   "construct": "merge order chosen after scoring, by slack"
+  },
+  {
+   "path": "graph_coarsening.py",
+   "line": 462,
+   "fragment": "mid_x = (node_i.x + node_j.x) / 2",
+   "construct": "super-node at the midpoint (x)"
+  },
+  {
+   "path": "graph_coarsening.py",
+   "line": 463,
+   "fragment": "mid_y = (node_i.y + node_j.y) / 2",
+   "construct": "super-node at the midpoint (y)"
+  },
+  {
+   "path": "solomon_dataset/C1/C104.csv",
+   "line": 38,
+   "fragment": "37,5,45,10,0.00    1,110,90",
+   "construct": "the malformed C104 row"
+  }
+ ]
+}

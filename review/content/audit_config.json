@@ -1,0 +1,74 @@
+{
+ "description": "Configuration of the GNN results audit. The notebook chooses the mode (QUICK or FULL); everything else is fixed here. Seeds and budgets are those of the published scripts.",
+ "sources": {
+  "upstream_url": "https://github.com/YoussefKamelKamel1/cvrptw-qubo-coarsening",
+  "upstream_ref": "a82c9e30762dc586f537219ac03cc895d12a2c73",
+  "predecessor_url": "https://github.com/mkingmking/graph-coarsening",
+  "predecessor_ref": "0d1056a8a86b35615000571b9f88b73bec00b31d",
+  "manuscript_pdf_url": "https://arxiv.org/pdf/2609.04593v2",
+  "checkpoint": "results/gnn_model_rl.pt"
+ },
+ "experiment": {
+  "arms": ["heuristic", "heuristic_fixed", "gnn"],
+  "sa_seeds": [0, 1, 2],
+  "sa_reads": 200,
+  "sa_sweeps": 200,
+  "penalty_mode": "adaptive",
+  "published_sizes": [10, 20, 40, 50, 60, 80, 100],
+  "main_salt": 0,
+  "label_rng_seed": 0,
+  "label_n_gnn": 4,
+  "label_ortools_seconds": 2.0,
+  "label_pool_ns": [10, 15, 20]
+ },
+ "modes": {
+  "QUICK": {
+   "grid": {"10": [0, 1, 2], "20": [0, 1, 2], "40": [0, 1, 2], "80": [0], "100": [0]},
+   "alt_salts": [1, 2, 3],
+   "label_ns": [10, 15, 20],
+   "label_instances": ["C101", "C102", "C201", "C202", "R101", "R102",
+                       "R201", "R202", "RC101", "RC102", "RC201", "RC202"],
+   "label_seeds": [0, 1, 2, 3, 4],
+   "authors_scripts": ["scripts/run_scorer_ablation.py"]
+  },
+  "FULL": {
+   "grid": {"10": [0, 1, 2], "20": [0, 1, 2], "40": [0, 1, 2], "50": [0, 1, 2],
+            "60": [0, 1, 2], "80": [0, 1, 2], "100": [0, 1, 2]},
+   "alt_salts": [1, 2, 3, 4, 5, 6, 7],
+   "label_ns": [10, 15, 20],
+   "label_instances": "all",
+   "label_seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+   "authors_scripts": ["scripts/run_scorer_ablation.py", "scripts/run_scaling_100.py"]
+  }
+ },
+ "statistics": {"boot_reps": 2000, "boot_seed": 20260904, "alpha_ci": 0.95},
+ "resources": {"cmd_timeout_s": 21600},
+ "reference_values": {
+  "description": "Values a computed result is compared with. 'source' says where each comes from: a page of the manuscript [1], or the code-level review behind the notebook. They are references, never results.",
+  "values": {
+   "n_train": {"value": 43, "source": "[1] p. 8, section 4"},
+   "n_test": {"value": 13, "source": "[1] p. 8, section 4"},
+   "c104_shared_below": {"value": 36, "source": "review point 9"},
+   "c104_customers": {"value": 99, "source": "review point 19"},
+   "other_customers": {"value": 100, "source": "review point 19"},
+   "c104_skipped_customer": {"value": 36, "source": "review point 19"},
+   "c104_malformed_line": {"value": 38, "source": "review point 19"},
+   "c104_affected_sizes": {"value": [40, 50, 60, 80], "source": "review point 19"},
+   "pairs_large_n": {"value": 25, "source": "review point 19"},
+   "pairs_all_sizes": {"value": 90, "source": "review point 19"},
+   "p_pre_repair_pooled": {"value": 0.62, "source": "[1] p. 21, section 8"},
+   "gnn_overall_pct": {"value": 83.3, "source": "[1] p. 11, section 5.4"},
+   "heuristic_overall_pct": {"value": 68.9, "source": "[1] p. 11, section 5.4"},
+   "heuristic_large_n_pct": {"value": [53.8, 58.3], "source": "[1] p. 13, section 5.4"},
+   "gnn_n10_pct": {"value": 100.0, "source": "[1] p. 11, section 5.3"},
+   "heuristic_n10_r_pct": {"value": 80.0, "source": "[1] p. 11, section 5.3"},
+   "n_test_r_type": {"value": 5, "source": "review point 8"},
+   "retraining_mean_pct": {"value": 87.2, "source": "[1] p. 16, section 5.7, Table 3"},
+   "pairs_n80": {"value": 13, "source": "review point 7"},
+   "pairs_n100": {"value": 12, "source": "review point 7"},
+   "large_n_better_or_tied": {"value": 25, "source": "[1] p. 13, section 5.4"},
+   "p_all_sizes": {"value": 0.055, "source": "[1] p. 13, section 5.4"},
+   "n10_margin_instance": {"value": "R112", "source": "review point 8"}
+  }
+ }
+}

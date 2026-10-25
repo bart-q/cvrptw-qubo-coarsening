@@ -1,0 +1,2007 @@
+{
+ "upstream_sha": "a82c9e30762dc586f537219ac03cc895d12a2c73",
+ "predecessor_sha": "0d1056a8a86b35615000571b9f88b73bec00b31d",
+ "remarks": [
+  {
+   "number": 1,
+   "kind": "answer",
+   "title": "The evidence does not isolate a benefit of the learned merge score",
+   "paragraphs": [
+    "The evidence does not isolate a benefit of the learned merge score",
+    "The manuscript credits the GNN merge score with more feasible coarsened solutions, but the evidence does not isolate that gain. The advantage is measured against a differently configured baseline, the control that would isolate the score is not reported, and three properties of the coarsening code change every arm's feasibility regardless of the scorer. The contribution is therefore not established — which is not the same as shown to be absent.",
+    "The comparison does not isolate the score",
+    "The abstract states the headline figures without naming the comparator (p. 1, Abstract) [1]:",
+    "{quote}feasibility is 83% vs. 69%, with the GNN better or tied on 85/90 instance-size pairs{/quote}",
+    "Section 5.4 states them against the per-family-tuned heuristic (p. 11, §5.4) [1]:",
+    "{quote}the GNN’s coarsened solutions are feasible more\noften than the per-family-tuned heuristic’s: $83.3\\%$ vs. $68.9\\%$ overall{/quote}",
+    "The manuscript itself defines the control that would isolate the score (p. 11, §5.4) [1]:",
+    "{quote}To isolate the effect of the score, we compare it with\n*heuristic-fixed*, which uses the same coarsening settings as the GNN\n($P{=}0.5$, radiusCoeff${=}0.5$).{/quote}",
+    "and states that this untuned control already beats the tuned baseline at large N (p. 13, §5.4) [1]:",
+    "{quote}At\n$N{=}80,100$, the tuned heuristic falls to $53.8$–$58.3\\%$ feasibility, below the\nuntuned fixed configuration{/quote}",
+    "The released script runs all three arms but tests the GNN only against the tuned one, with a one-sided test (scripts/run_scaling_100.py:L27, L55, L57) [2]:",
+    "{quote}conditions = [\"heuristic\", \"heuristic_fixed\", \"gnn\"]{/quote}",
+    "{quote}x, y = piv[\"gnn\"].to_numpy(), piv[\"heuristic\"].to_numpy(){/quote}",
+    "{quote}_, p = wilcoxon(x, y, alternative=\"greater\"){/quote}",
+    "The only matched comparison in the text concerns pre-repair violations, not feasibility, and finds no difference (p. 21, §8) [1]:",
+    "{quote}Under matched settings, its difference in pre-repair\nviolations from a fixed-parameter heuristic is not significant ($p\\!=\\!0.62$ pooled\nover $N$).{/quote}",
+    "At N = 10 the headline margin over both heuristics rests on a single instance, which the manuscript does not name. The released script saves every run but prints only means per size (scripts/run_scorer_ablation.py:L46, L54) [2]:",
+    "{quote}df.to_csv(ROOT / \"results\" / \"scorer_ablation.csv\", index=False){/quote}",
+    "{quote}f\"feas={100*s.is_feasible.mean():5.1f}%  \"{/quote}",
+    "Running that script without changes at the commit in [2] and grouping the saved runs by instance shows that the only instance below 100% in any arm is R112 truncated to 10 customers: both heuristic arms fail in all three seeds, the GNN succeeds. This describes how to obtain the evidence rather than published evidence; heuristic outcomes can change with the hash salt, and it concerns the released checkpoint, not the retrained models of Table 3.",
+    "The gain over the tuned arm may come from the fixed settings rather than from learning; only a feasibility comparison with heuristic-fixed can tell.",
+    "Code properties that change every arm's feasibility",
+    "Lifting. A super-node is placed at the midpoint of the merged pair (src/coarsening.py:L267) [2]:",
+    "{quote}sid, (ni.x + nj.x) / 2, (ni.y + nj.y) / 2, s_ij, e_prime, l_prime,{/quote}",
+    "Travel to and from it is computed from that point, while the expanded route visits the two customers themselves. Feasibility is evaluated only after expansion, on the original graph, with no repair in between (src/experiment.py:L81, L83) [2]:",
+    "{quote}routes = coarsener.inflate_route(routes){/quote}",
+    "{quote}metrics = calculate_route_metrics(metrics_graph, routes, depot_id, capacity){/quote}",
+    "A route that meets every time window on the coarse graph can therefore miss one after expansion. The manuscript claims the opposite for distances, which holds only for the leg inside the pair (p. 4, §3.1) [1]:",
+    "{quote}preserves distance consistency after inflation{/quote}",
+    "Tie-breaking. Edges are sorted on the score alone, and the edges created after a merge follow the iteration order of a set of string identifiers (src/coarsening.py:L210, L225) [2]:",
+    "{quote}nbrs = (g.get_neighbors(ni.id) | g.get_neighbors(nj.id)) - {{/quote}",
+    "{quote}sorted_edges = sorted(G.edges, key=lambda e: e.D_ij){/quote}",
+    "That order depends on the per-process hash salt, which the seed function cannot fix, because CPython reads PYTHONHASHSEED only when the interpreter starts (src/utils.py:L26) [2]:",
+    "{quote}os.environ[\"PYTHONHASHSEED\"] = str(seed){/quote}",
+    "Identical inputs and seeds can thus give different coarsenings, so the baseline against which the GNN is judged can change between runs, contrary to (p. 8, §4) [1]:",
+    "{quote}All compared conditions receive the same solver\nbudget, including the backend, number of reads, sweeps, and seed{/quote}",
+    "Ranking orientation. Eq. (1) is directional, but each pair is scored in the order in which its edge was created, and merged in an order chosen afterwards by slack (src/coarsening.py:L156, L245) [2]:",
+    "{quote}ni = graph.nodes[edge.u_id]{/quote}",
+    "{quote}pi_order, _ = self._order_by_slack(ni, nj){/quote}",
+    "The text does not say which endpoint is i, so this is an unspecified convention, not an error against the manuscript; its effect must be measured separately.",
+    "The midpoint super-node, the score-only sort, the set-based reconnection and the scoring orientation are all present in the first published version of the predecessor's coarsener (graph_coarsening.py:L272-L278, L362, L405, L436, L462-L463) [3]. The ineffective in-process seed is new in the GNN repository.",
+    "Proposed remedy: deterministic coarsening with feasibility measured on the original instance, any change to lifting introduced as a named method change, and comparison with heuristic-fixed per size using two-sided tests over base instances."
+   ],
+   "quotes": [
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 1,
+     "section": "Abstract",
+     "text": "feasibility is 83% vs. 69%, with the GNN better or tied on 85/90 instance-size pairs",
+     "par": 4
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 11,
+     "section": "section 5.4",
+     "text": "the GNN’s coarsened solutions are feasible more\noften than the per-family-tuned heuristic’s: $83.3\\%$ vs. $68.9\\%$ overall",
+     "par": 6
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 11,
+     "section": "section 5.4",
+     "text": "To isolate the effect of the score, we compare it with\n*heuristic-fixed*, which uses the same coarsening settings as the GNN\n($P{=}0.5$, radiusCoeff${=}0.5$).",
+     "par": 8
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 13,
+     "section": "section 5.4",
+     "text": "At\n$N{=}80,100$, the tuned heuristic falls to $53.8$–$58.3\\%$ feasibility, below the\nuntuned fixed configuration",
+     "par": 10
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 27,
+     "cited": [
+      27,
+      27
+     ],
+     "text": "conditions = [\"heuristic\", \"heuristic_fixed\", \"gnn\"]",
+     "par": 12
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 55,
+     "cited": [
+      55,
+      55
+     ],
+     "text": "x, y = piv[\"gnn\"].to_numpy(), piv[\"heuristic\"].to_numpy()",
+     "par": 13
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 57,
+     "cited": [
+      57,
+      57
+     ],
+     "text": "_, p = wilcoxon(x, y, alternative=\"greater\")",
+     "par": 14
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 21,
+     "section": "section 8",
+     "text": "Under matched settings, its difference in pre-repair\nviolations from a fixed-parameter heuristic is not significant ($p\\!=\\!0.62$ pooled\nover $N$).",
+     "par": 16
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scorer_ablation.py",
+     "line": 46,
+     "cited": [
+      46,
+      46
+     ],
+     "text": "df.to_csv(ROOT / \"results\" / \"scorer_ablation.csv\", index=False)",
+     "par": 18
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scorer_ablation.py",
+     "line": 54,
+     "cited": [
+      54,
+      54
+     ],
+     "text": "f\"feas={100*s.is_feasible.mean():5.1f}%  \"",
+     "par": 19
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 267,
+     "cited": [
+      267,
+      267
+     ],
+     "text": "sid, (ni.x + nj.x) / 2, (ni.y + nj.y) / 2, s_ij, e_prime, l_prime,",
+     "par": 24
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 81,
+     "cited": [
+      81,
+      81
+     ],
+     "text": "routes = coarsener.inflate_route(routes)",
+     "par": 26
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 83,
+     "cited": [
+      83,
+      83
+     ],
+     "text": "metrics = calculate_route_metrics(metrics_graph, routes, depot_id, capacity)",
+     "par": 27
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 4,
+     "section": "section 3.1",
+     "text": "preserves distance consistency after inflation",
+     "par": 29
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 210,
+     "cited": [
+      210,
+      210
+     ],
+     "text": "nbrs = (g.get_neighbors(ni.id) | g.get_neighbors(nj.id)) - {",
+     "par": 31
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 225,
+     "cited": [
+      225,
+      225
+     ],
+     "text": "sorted_edges = sorted(G.edges, key=lambda e: e.D_ij)",
+     "par": 32
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/utils.py",
+     "line": 26,
+     "cited": [
+      26,
+      26
+     ],
+     "text": "os.environ[\"PYTHONHASHSEED\"] = str(seed)",
+     "par": 34
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 4",
+     "text": "All compared conditions receive the same solver\nbudget, including the backend, number of reads, sweeps, and seed",
+     "par": 36
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 156,
+     "cited": [
+      156,
+      156
+     ],
+     "text": "ni = graph.nodes[edge.u_id]",
+     "par": 38
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 245,
+     "cited": [
+      245,
+      245
+     ],
+     "text": "pi_order, _ = self._order_by_slack(ni, nj)",
+     "par": 39
+    }
+   ]
+  },
+  {
+   "number": 2,
+   "kind": "insight",
+   "title": "The merge score ranks each pair in the orientation its edge was created, not the one in which it is merged",
+   "paragraphs": [
+    "The merge score ranks each pair in the orientation its edge was created, not the one in which it is merged",
+    "Eq. (1) is directional: its β term charges the waiting time at j when the vehicle travels from i to j. The code evaluates it with i as the edge's first endpoint, and only afterwards, for pairs that passed the threshold, chooses the merge order by larger slack. A pair can therefore be ranked by a direction in which it is never merged.",
+    "Algorithm 1 sorts the scored edges and chooses the order separately, without saying which endpoint is i:",
+    "{quote}sort ascending{/quote}\n(p. 4, §3.1, Algorithm 1) [1]",
+    "{quote}choose order by larger slack{/quote}\n(p. 4, §3.1, Algorithm 1) [1]",
+    "The score is computed from the edge's stored endpoints (src/coarsening.py:L156, L159) [2]:",
+    "{quote}ni = graph.nodes[edge.u_id]{/quote}",
+    "{quote}temporal_slack = max(0.0, nj.e - (ni.t + ni.s + tau)){/quote}",
+    "The executed order is chosen later, for each admitted pair (src/coarsening.py:L245) [2]:",
+    "{quote}pi_order, _ = self._order_by_slack(ni, nj){/quote}",
+    "The first endpoint is the lower node index when the graph is built, and the super-node after a merge (src/coarsening.py:L111, L214) [2]:",
+    "{quote}self.add_edge(ids[i], ids[j],{/quote}",
+    "{quote}g.add_edge(super_node.id, nb, euclidean(super_node, g.nodes[nb])){/quote}",
+    "Lateness is excluded by a separate test, so the β term is an earliness charge, not a lateness one (src/coarsening.py:L184) [2]:",
+    "{quote}feas_ij = (ni.e + ni.s + tau <= nj.l){/quote}",
+    "Impact",
+    "Which pairs fall below the threshold depends on the order in which edges were created. Every arm is affected, and so are the GNN's training labels, which are built from those coarsenings.",
+    "Origin",
+    "The same scoring and the later order choice are in the predecessor's first version (graph_coarsening.py:L272, L436) [3]. Identical logic does not by itself show that the code was copied.",
+    "Proposed remedy: state the scoring convention in Algorithm 1; scoring the executed direction instead would be a named method change."
+   ],
+   "quotes": [
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 4,
+     "section": "section 3.1, Algorithm 1",
+     "text": "sort ascending",
+     "par": 3
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 4,
+     "section": "section 3.1, Algorithm 1",
+     "text": "choose order by larger slack",
+     "par": 4
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 156,
+     "cited": [
+      156,
+      156
+     ],
+     "text": "ni = graph.nodes[edge.u_id]",
+     "par": 6
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 159,
+     "cited": [
+      159,
+      159
+     ],
+     "text": "temporal_slack = max(0.0, nj.e - (ni.t + ni.s + tau))",
+     "par": 7
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 245,
+     "cited": [
+      245,
+      245
+     ],
+     "text": "pi_order, _ = self._order_by_slack(ni, nj)",
+     "par": 9
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 111,
+     "cited": [
+      111,
+      111
+     ],
+     "text": "self.add_edge(ids[i], ids[j],",
+     "par": 11
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 214,
+     "cited": [
+      214,
+      214
+     ],
+     "text": "g.add_edge(super_node.id, nb, euclidean(super_node, g.nodes[nb]))",
+     "par": 12
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 184,
+     "cited": [
+      184,
+      184
+     ],
+     "text": "feas_ij = (ni.e + ni.s + tau <= nj.l)",
+     "par": 14
+    }
+   ]
+  },
+  {
+   "number": 3,
+   "kind": "insight",
+   "title": "Tie-breaking depends on the Python hash salt, so identical inputs and seeds do not give identical coarsenings",
+   "paragraphs": [
+    "Tie-breaking depends on the Python hash salt, so identical inputs and seeds do not give identical coarsenings",
+    "The heuristic coarsening is not reproducible across processes. Edges are sorted on the score alone, so equal scores keep their list order; after a merge, new edges are appended in the iteration order of a set of string identifiers, and that order depends on the per-process hash salt. The seed function tries to fix the salt from inside the running interpreter, where CPython ignores it.",
+    "The sort uses only the score (src/coarsening.py:L225) [2]:",
+    "{quote}sorted_edges = sorted(G.edges, key=lambda e: e.D_ij){/quote}",
+    "New edges follow a set of node identifiers (src/coarsening.py:L210, L212) [2]:",
+    "{quote}nbrs = (g.get_neighbors(ni.id) | g.get_neighbors(nj.id)) - {{/quote}",
+    "{quote}for nb in nbrs:{/quote}",
+    "The salt is set after start-up, which has no effect on string hashing in the current process (src/utils.py:L26) [2]:",
+    "{quote}os.environ[\"PYTHONHASHSEED\"] = str(seed){/quote}",
+    "Ties are possible because Solomon coordinates are integers, as the first data lines show (data/solomon/R1/R104.csv:L2, L3) [2]:",
+    "{quote}1,35,35,0,0,230,0{/quote}",
+    "{quote}2,41,49,10,0,204,10{/quote}",
+    "Both the release and the paper promise reproducibility (src/experiment.py:L7) [2]:",
+    "{quote}regenerable from (instance, N, seed, SolverConfig, PenaltyWeights).{/quote}",
+    "{quote}All compared conditions receive the same solver\nbudget, including the backend, number of reads, sweeps, and seed{/quote}\n(p. 8, §4) [1]",
+    "{quote}needed to reproduce every figure and table in this paper{/quote}\n(p. 22, §9) [1]",
+    "Impact",
+    "Any arm whose scores tie can merge different pairs in different runs with the same seed, so the baseline against which the GNN is judged can change without any change of method. A reported difference between arms may partly reflect which salt each run happened to get.",
+    "Origin",
+    "The score-only sort and the set-based reconnection are inherited (graph_coarsening.py:L362, L405) [3]; the ineffective in-process seeding is new in the GNN repository.",
+    "Proposed remedy: a total sort key and sorted neighbour iteration with the salt fixed before the interpreter starts, followed by a rerun of the published comparisons."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 225,
+     "cited": [
+      225,
+      225
+     ],
+     "text": "sorted_edges = sorted(G.edges, key=lambda e: e.D_ij)",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 210,
+     "cited": [
+      210,
+      210
+     ],
+     "text": "nbrs = (g.get_neighbors(ni.id) | g.get_neighbors(nj.id)) - {",
+     "par": 5
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 212,
+     "cited": [
+      212,
+      212
+     ],
+     "text": "for nb in nbrs:",
+     "par": 6
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/utils.py",
+     "line": 26,
+     "cited": [
+      26,
+      26
+     ],
+     "text": "os.environ[\"PYTHONHASHSEED\"] = str(seed)",
+     "par": 8
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/R1/R104.csv",
+     "line": 2,
+     "cited": [
+      2,
+      2
+     ],
+     "text": "1,35,35,0,0,230,0",
+     "par": 10
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/R1/R104.csv",
+     "line": 3,
+     "cited": [
+      3,
+      3
+     ],
+     "text": "2,41,49,10,0,204,10",
+     "par": 11
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 7,
+     "cited": [
+      7,
+      7
+     ],
+     "text": "regenerable from (instance, N, seed, SolverConfig, PenaltyWeights).",
+     "par": 13
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 4",
+     "text": "All compared conditions receive the same solver\nbudget, including the backend, number of reads, sweeps, and seed",
+     "par": 14
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 22,
+     "section": "section 9",
+     "text": "needed to reproduce every figure and table in this paper",
+     "par": 15
+    }
+   ]
+  },
+  {
+   "number": 4,
+   "kind": "insight",
+   "title": "Midpoint super-nodes can make a coarse-feasible route infeasible after expansion",
+   "paragraphs": [
+    "Midpoint super-nodes can make a coarse-feasible route infeasible after expansion",
+    "A super-node is placed at the midpoint of its pair, and every travel time to or from it is measured from that point. The expanded route instead drives to the first customer of the pair and leaves from the second. The coarse schedule is therefore computed on approximate approach and departure legs, and a route that meets every time window on the coarse graph can miss one after expansion. Nothing repairs the expanded route before its feasibility is measured.",
+    "The super-node position and service time (src/coarsening.py:L265, L267) [2]:",
+    "{quote}s_ij = ni.s + tau_internal + nj.s{/quote}",
+    "{quote}sid, (ni.x + nj.x) / 2, (ni.y + nj.y) / 2, s_ij, e_prime, l_prime,{/quote}",
+    "Edges to other nodes are measured from the super-node's position (src/coarsening.py:L214) [2]:",
+    "{quote}g.add_edge(super_node.id, nb, euclidean(super_node, g.nodes[nb])){/quote}",
+    "Expansion only re-inserts the pair in its recorded order (src/coarsening.py:L289) [2], and feasibility is then computed on the original graph (src/experiment.py:L81, L83) [2]:",
+    "{quote}pair = [i_id, j_id] if first_id == i_id else [j_id, i_id]{/quote}",
+    "{quote}routes = coarsener.inflate_route(routes){/quote}",
+    "{quote}metrics = calculate_route_metrics(metrics_graph, routes, depot_id, capacity){/quote}",
+    "The manuscript describes the construction and claims a preservation property that holds only for the leg inside the pair:",
+    "{quote}assigns the super-node a midpoint location{/quote}\n(p. 4, §3.1) [1]",
+    "{quote}preserves distance consistency after inflation{/quote}\n(p. 4, §3.1, after Eq. (2)) [1]",
+    "{quote}Inflation restores\n$i$ and $j$ in the recorded order{/quote}\n(p. 4, §3.1) [1]",
+    "Impact",
+    "The feasibility reported after expansion mixes the quality of the coarse solution with the error of the lifting step. Since the step is common to all arms, differences between scorers at large N may be differences in how often each arm's merges survive expansion.",
+    "Origin",
+    "The midpoint construction is in the predecessor's first version (graph_coarsening.py:L462-L463) [3], which also expands without repair.",
+    "Proposed remedy: report the loss at expansion per arm and N, and introduce any repair after expansion or exact super-node as a named method change."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 265,
+     "cited": [
+      265,
+      265
+     ],
+     "text": "s_ij = ni.s + tau_internal + nj.s",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 267,
+     "cited": [
+      267,
+      267
+     ],
+     "text": "sid, (ni.x + nj.x) / 2, (ni.y + nj.y) / 2, s_ij, e_prime, l_prime,",
+     "par": 4
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 214,
+     "cited": [
+      214,
+      214
+     ],
+     "text": "g.add_edge(super_node.id, nb, euclidean(super_node, g.nodes[nb]))",
+     "par": 6
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 289,
+     "cited": [
+      289,
+      289
+     ],
+     "text": "pair = [i_id, j_id] if first_id == i_id else [j_id, i_id]",
+     "par": 8
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 81,
+     "cited": [
+      81,
+      81
+     ],
+     "text": "routes = coarsener.inflate_route(routes)",
+     "par": 9
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 83,
+     "cited": [
+      83,
+      83
+     ],
+     "text": "metrics = calculate_route_metrics(metrics_graph, routes, depot_id, capacity)",
+     "par": 10
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 4,
+     "section": "section 3.1",
+     "text": "assigns the super-node a midpoint location",
+     "par": 12
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 4,
+     "section": "section 3.1, after Eq. (2)",
+     "text": "preserves distance consistency after inflation",
+     "par": 13
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 4,
+     "section": "section 3.1",
+     "text": "Inflation restores\n$i$ and $j$ in the recorded order",
+     "par": 14
+    }
+   ]
+  },
+  {
+   "number": 5,
+   "kind": "insight",
+   "title": "Pre-repair metrics compare different coarse problems and omit the return to the depot",
+   "paragraphs": [
+    "Pre-repair metrics compare different coarse problems and omit the return to the depot",
+    "The pre-repair quantities are computed before expansion, on the problem the QUBO was built from. That is the uncoarsened instance for one arm and a different coarse graph for each coarsening arm, so pre-repair counts do not refer to one common problem. The time-window counter used for them also ends at the last customer and never checks the return to the depot.",
+    "The pre-repair report is taken from the raw decoded sample, before expansion (src/experiment.py:L76) [2]:",
+    "{quote}pre = sol.report(sol.raw_solution)  # pre-repair SA quality (int space){/quote}",
+    "Repair also runs on the solver's own, coarse, problem (src/solvers.py:L104, L106) [2]:",
+    "{quote}self.raw_solution = [list(r) for r in decoded]{/quote}",
+    "{quote}repaired = self._repair_solution(decoded){/quote}",
+    "The counter walks the route's customers and stops (src/solvers.py:L120, L126) [2]:",
+    "{quote}for idx in range(len(route) - 1):{/quote}",
+    "{quote}return v{/quote}",
+    "The manuscript presents these metrics as measuring raw quality and compares them across arms and devices:",
+    "{quote}which isolate the\nraw solver/coarsening quality{/quote}\n(p. 8, §3.6) [1]",
+    "{quote}Under matched settings, its difference in pre-repair\nviolations from a fixed-parameter heuristic is not significant ($p\\!=\\!0.62$ pooled\nover $N$).{/quote}\n(p. 21, §8) [1]",
+    "{quote}Simulated annealing reaches\n$79\\%$ pre-repair feasibility on the same coarsened QUBOs{/quote}\n(p. 19, §6.3) [1]",
+    "Impact",
+    "The test of pre-repair violations between the GNN and heuristic-fixed compares counts on two different problems. The pre-repair term of the training reward has the same property. The comparison between simulated annealing and the processor is made on the same coarsened QUBOs, so it is consistent within itself, but it still uses the depot-blind counter.",
+    "Proposed remedy: measure pre-repair quality on the original instance, counting the return to the depot, and label the coarse-space quantities as such."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 76,
+     "cited": [
+      76,
+      76
+     ],
+     "text": "pre = sol.report(sol.raw_solution)  # pre-repair SA quality (int space)",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/solvers.py",
+     "line": 104,
+     "cited": [
+      104,
+      104
+     ],
+     "text": "self.raw_solution = [list(r) for r in decoded]",
+     "par": 5
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/solvers.py",
+     "line": 106,
+     "cited": [
+      106,
+      106
+     ],
+     "text": "repaired = self._repair_solution(decoded)",
+     "par": 6
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/solvers.py",
+     "line": 120,
+     "cited": [
+      120,
+      120
+     ],
+     "text": "for idx in range(len(route) - 1):",
+     "par": 8
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/solvers.py",
+     "line": 126,
+     "cited": [
+      126,
+      126
+     ],
+     "text": "return v",
+     "par": 9
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 3.6",
+     "text": "which isolate the\nraw solver/coarsening quality",
+     "par": 11
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 21,
+     "section": "section 8",
+     "text": "Under matched settings, its difference in pre-repair\nviolations from a fixed-parameter heuristic is not significant ($p\\!=\\!0.62$ pooled\nover $N$).",
+     "par": 12
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 19,
+     "section": "section 6.3",
+     "text": "Simulated annealing reaches\n$79\\%$ pre-repair feasibility on the same coarsened QUBOs",
+     "par": 13
+    }
+   ]
+  },
+  {
+   "number": 6,
+   "kind": "insight",
+   "title": "The headline advantage is measured against the tuned heuristic, not against the control that isolates the score",
+   "paragraphs": [
+    "The headline advantage is measured against the tuned heuristic, not against the control that isolates the score",
+    "The manuscript defines the right control and then reports its result against a different baseline. Heuristic-fixed uses the GNN's coarsening settings with the hand-designed score, so only a comparison with it can show a benefit of learning. The reported comparison is with the per-family-tuned heuristic, which the manuscript itself says is beaten by the untuned fixed configuration at large N.",
+    "Section 5.4 states:",
+    "{quote}To isolate the effect of the score, we compare it with\n*heuristic-fixed*, which uses the same coarsening settings as the GNN\n($P{=}0.5$, radiusCoeff${=}0.5$).{/quote}\n(p. 11, §5.4) [1]",
+    "but states its headline against the tuned heuristic:",
+    "{quote}$83.3\\%$ vs. $68.9\\%$ overall{/quote}\n(p. 11, §5.4) [1]",
+    "and reports that the untuned fixed configuration beats the tuned heuristic at large N:",
+    "{quote}At\n$N{=}80,100$, the tuned heuristic falls to $53.8$–$58.3\\%$ feasibility, below the\nuntuned fixed configuration{/quote}\n(p. 13, §5.4) [1]",
+    "It nevertheless credits the learned policy with the tuning-free result:",
+    "{quote}The\nlearned policy thus removes family-specific tuning{/quote}\n(p. 13, §5.4) [1]",
+    "The Discussion attributes the advantage to operating across families and sizes without retuning:",
+    "{quote}rather than from the merge score\nconsidered in isolation{/quote}\n(p. 21, §8) [1]",
+    "while the Conclusion again compares with the tuned heuristic:",
+    "{quote}preserves feasibility more often than the family-tuned heuristic over\n$N{=}10$–$100${/quote}\n(p. 21, §9) [1]",
+    "The released script runs all three arms and tests only the GNN against the tuned one (scripts/run_scaling_100.py:L27, L55) [2]:",
+    "{quote}conditions = [\"heuristic\", \"heuristic_fixed\", \"gnn\"]{/quote}",
+    "{quote}x, y = piv[\"gnn\"].to_numpy(), piv[\"heuristic\"].to_numpy(){/quote}",
+    "Equal settings do not guarantee equal problem sizes. P is a target, and a level ends early when no admissible pair is found; admissibility depends on which pairs the score ranks first (src/coarsening.py:L223, L243, L253) [2]:",
+    "{quote}while len(G.nodes) > self.P * n0:{/quote}",
+    "{quote}if not (feas_ij or feas_ji):{/quote}",
+    "{quote}if not M:{/quote}",
+    "Impact",
+    "The gain attributed to learning may come from the fixed settings. The two arms may also end at different QUBO sizes, which the manuscript does not report beside the comparison.",
+    "Proposed remedy: compare with heuristic-fixed at reported QUBO sizes, and credit the tuning-free result to the fixed settings unless the learned score adds to it."
+   ],
+   "quotes": [
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 11,
+     "section": "section 5.4",
+     "text": "To isolate the effect of the score, we compare it with\n*heuristic-fixed*, which uses the same coarsening settings as the GNN\n($P{=}0.5$, radiusCoeff${=}0.5$).",
+     "par": 3
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 11,
+     "section": "section 5.4",
+     "text": "$83.3\\%$ vs. $68.9\\%$ overall",
+     "par": 5
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 13,
+     "section": "section 5.4",
+     "text": "At\n$N{=}80,100$, the tuned heuristic falls to $53.8$–$58.3\\%$ feasibility, below the\nuntuned fixed configuration",
+     "par": 7
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 13,
+     "section": "section 5.4",
+     "text": "The\nlearned policy thus removes family-specific tuning",
+     "par": 9
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 21,
+     "section": "section 8",
+     "text": "rather than from the merge score\nconsidered in isolation",
+     "par": 11
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 21,
+     "section": "section 9",
+     "text": "preserves feasibility more often than the family-tuned heuristic over\n$N{=}10$–$100$",
+     "par": 13
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 27,
+     "cited": [
+      27,
+      27
+     ],
+     "text": "conditions = [\"heuristic\", \"heuristic_fixed\", \"gnn\"]",
+     "par": 15
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 55,
+     "cited": [
+      55,
+      55
+     ],
+     "text": "x, y = piv[\"gnn\"].to_numpy(), piv[\"heuristic\"].to_numpy()",
+     "par": 16
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 223,
+     "cited": [
+      223,
+      223
+     ],
+     "text": "while len(G.nodes) > self.P * n0:",
+     "par": 18
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 243,
+     "cited": [
+      243,
+      243
+     ],
+     "text": "if not (feas_ij or feas_ji):",
+     "par": 19
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 253,
+     "cited": [
+      253,
+      253
+     ],
+     "text": "if not M:",
+     "par": 20
+    }
+   ]
+  },
+  {
+   "number": 7,
+   "kind": "insight",
+   "title": "The significance claim rests on an undeclared one-sided test over pooled, dependent cells",
+   "paragraphs": [
+    "The significance claim rests on an undeclared one-sided test over pooled, dependent cells",
+    "The only significance result for the GNN advantage does not follow the analysis the manuscript describes. The script behind it averages seeds where the text promises a median, pools the cells of two sizes into one test so that base instances enter twice, and runs the test one-sided without saying so.",
+    "The abstract claims significance at large N:",
+    "{quote}is significant at N = 80,100{/quote}\n(p. 1, Abstract) [1]",
+    "The results give the pair count behind it:",
+    "{quote}is better or tied on all $25$ available\npairs{/quote}\n(p. 13, §5.4) [1]",
+    "Section 4 describes a different aggregation of seeds:",
+    "{quote}take the median across seeds to obtain one value per\ninstance before forming pairs{/quote}\n(p. 8, §4) [1]",
+    "For all sizes aggregated to base instances, the manuscript reports:",
+    "{quote}preserves the direction of the effect but gives\n$p\\!=\\!0.055${/quote}\n(p. 13, §5.4) [1]",
+    "The script averages seeds per (instance, N) cell and pools both sizes into one one-sided test (scripts/run_scaling_100.py:L31, L53, L57) [2]:",
+    "{quote}for N in [80, 100]:{/quote}",
+    "{quote}piv = (df.groupby([\"instance\", \"N\", \"condition\"])[\"is_feasible\"].mean(){/quote}",
+    "{quote}_, p = wilcoxon(x, y, alternative=\"greater\"){/quote}",
+    "The other scaling and ablation scripts are one-sided too (scripts/run_scaling_large.py:L97; scripts/run_scorer_ablation.py:L67) [2]:",
+    "{quote}_, p = wilcoxon(x, y, alternative=\"greater\"){/quote}",
+    "{quote}p = (wilcoxon(hfi, gi, alternative=\"greater\")[1]{/quote}",
+    "The 25 pairs are 13 test instances at N = 80 and 12 at N = 100. One instance is dropped at N = 100 because the loader reads C104 with 99 customers: a malformed row in the data file is skipped without warning (scripts/run_scaling_100.py:L32; src/datasets.py:L218-L219; data/solomon/C1/C104.csv:L38) [2]:",
+    "{quote}insts = [n for n in test if load_solomon(n).n_customers >= N]{/quote}",
+    "{quote}except (KeyError, ValueError):{/quote}",
+    "{quote}37,5,45,10,0.00    1,110,90{/quote}",
+    "Impact",
+    "The abstract's significance claim and the scaling result rest on a one-sided test over dependent cells. Halving a two-sided p-value is what a one-sided test does, so the published p = 0.055 for the instance-level comparison is consistent with a one-sided test, but the text does not say which was used. No script in the release combines the seven sizes behind the 83.3% versus 68.9% headline.",
+    "Proposed remedy: one released analysis script with two-sided tests per size over base instances, and the test, sidedness and unit stated beside every p-value."
+   ],
+   "quotes": [
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 1,
+     "section": "Abstract",
+     "text": "is significant at N = 80,100",
+     "par": 3
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 13,
+     "section": "section 5.4",
+     "text": "is better or tied on all $25$ available\npairs",
+     "par": 5
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 4",
+     "text": "take the median across seeds to obtain one value per\ninstance before forming pairs",
+     "par": 7
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 13,
+     "section": "section 5.4",
+     "text": "preserves the direction of the effect but gives\n$p\\!=\\!0.055$",
+     "par": 9
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 31,
+     "cited": [
+      31,
+      31
+     ],
+     "text": "for N in [80, 100]:",
+     "par": 11
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 53,
+     "cited": [
+      53,
+      53
+     ],
+     "text": "piv = (df.groupby([\"instance\", \"N\", \"condition\"])[\"is_feasible\"].mean()",
+     "par": 12
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 57,
+     "cited": [
+      57,
+      57
+     ],
+     "text": "_, p = wilcoxon(x, y, alternative=\"greater\")",
+     "par": 13
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_large.py",
+     "line": 97,
+     "cited": [
+      97,
+      97
+     ],
+     "text": "_, p = wilcoxon(x, y, alternative=\"greater\")",
+     "par": 15
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scorer_ablation.py",
+     "line": 67,
+     "cited": [
+      67,
+      67
+     ],
+     "text": "p = (wilcoxon(hfi, gi, alternative=\"greater\")[1]",
+     "par": 16
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 32,
+     "cited": [
+      32,
+      32
+     ],
+     "text": "insts = [n for n in test if load_solomon(n).n_customers >= N]",
+     "par": 18
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 218,
+     "cited": [
+      218,
+      219
+     ],
+     "text": "except (KeyError, ValueError):",
+     "par": 19
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/C1/C104.csv",
+     "line": 38,
+     "cited": [
+      38,
+      38
+     ],
+     "text": "37,5,45,10,0.00    1,110,90",
+     "par": 20
+    }
+   ]
+  },
+  {
+   "number": 8,
+   "kind": "insight",
+   "title": "The 100% headline at N = 10 rests on one released model and very few instances",
+   "paragraphs": [
+    "The 100% headline at N = 10 rests on one released model and very few instances",
+    "The abstract states a per-family universal from one trained model on 13 test instances, where a single instance moves the figure by 7.7 points. The manuscript's own retraining of the same architecture reports less.",
+    "The abstract states:",
+    "{quote}it achieves 100% feasibility across all Solomon families{/quote}\n(p. 1, Abstract) [1]",
+    "Section 5.3 specifies:",
+    "{quote}the model reaches $100\\%$ feasibility\nat $N{=}10$, including $100\\%$ on R-type instances compared with $80\\%$\nfor the tuned heuristic{/quote}\n(p. 11, §5.3) [1]",
+    "Table 3 reports the same architecture retrained from three seeds:",
+    "{quote}Coarsened feasibility (%) on the held-out test instances, mean over three training seeds{/quote}\n(p. 16, §5.7, Table 3 caption) [1]",
+    "Its value for GraphSAGE at N = 10:",
+    "{quote}$87.2\\pm 3.6${/quote}\n(p. 16, §5.7, Table 3, GraphSAGE, N=10) [1]",
+    "The test set is every fourth instance of each series (src/datasets.py:L333) [2], so it holds five R-type instances, and 80% on R-type is four of five:",
+    "{quote}(test if i % test_every == test_every - 1 else train).append(name){/quote}",
+    "Where the margin comes from",
+    "The manuscript does not name the instances that fail, and the released scripts do not print them. The script that compares the three arms saves every run to a file but prints only means per size and arm (scripts/run_scorer_ablation.py:L46, L52, L54) [2]:",
+    "{quote}df.to_csv(ROOT / \"results\" / \"scorer_ablation.csv\", index=False){/quote}",
+    "{quote}s = df[(df.N == N) & (df.condition == c)]{/quote}",
+    "{quote}f\"feas={100*s.is_feasible.mean():5.1f}%  \"{/quote}",
+    "The per-instance result can therefore be obtained by anyone: clone the repository at the commit in [2], run this script without changes, and group the saved file by instance at N = 10. Done this way, the only instance below 100% in any arm was R112 truncated to 10 customers: both heuristic arms were infeasible in all three seeds, and the GNN was feasible in all three. The whole margin of the 100% headline over both heuristics is this one instance.",
+    "This is a description of how to obtain the evidence, not published evidence, and it has limits. The heuristic arms depend on the per-process hash salt, so another run can differ. It concerns the released checkpoint only: it explains the gap between that model and the heuristics at N = 10, not the 87.2% of the retrained models in Table 3, whose failing instances cannot be identified from the release.",
+    "Impact",
+    "The 100% and the 80% for the tuned heuristic differ by one instance; the multi-seed retraining mean of 87.2% differs from the released model by one to two instances out of 13. The abstract presents this as a family-level result.",
+    "Proposed remedy: report the retraining mean and the failing instances beside the released model, and drop the per-family universal from the abstract."
+   ],
+   "quotes": [
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 1,
+     "section": "Abstract",
+     "text": "it achieves 100% feasibility across all Solomon families",
+     "par": 3
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 11,
+     "section": "section 5.3",
+     "text": "the model reaches $100\\%$ feasibility\nat $N{=}10$, including $100\\%$ on R-type instances compared with $80\\%$\nfor the tuned heuristic",
+     "par": 5
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 16,
+     "section": "section 5.7, Table 3 caption",
+     "text": "Coarsened feasibility (%) on the held-out test instances, mean over three training seeds",
+     "par": 7
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 16,
+     "section": "section 5.7, Table 3, GraphSAGE, N=10",
+     "text": "$87.2\\pm 3.6$",
+     "par": 9
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 333,
+     "cited": [
+      333,
+      333
+     ],
+     "text": "(test if i % test_every == test_every - 1 else train).append(name)",
+     "par": 11
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scorer_ablation.py",
+     "line": 46,
+     "cited": [
+      46,
+      46
+     ],
+     "text": "df.to_csv(ROOT / \"results\" / \"scorer_ablation.csv\", index=False)",
+     "par": 14
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scorer_ablation.py",
+     "line": 52,
+     "cited": [
+      52,
+      52
+     ],
+     "text": "s = df[(df.N == N) & (df.condition == c)]",
+     "par": 15
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scorer_ablation.py",
+     "line": 54,
+     "cited": [
+      54,
+      54
+     ],
+     "text": "f\"feas={100*s.is_feasible.mean():5.1f}%  \"",
+     "par": 16
+    }
+   ]
+  },
+  {
+   "number": 9,
+   "kind": "insight",
+   "title": "The held-out instances share their customer maps with training; only time windows are new",
+   "paragraphs": [
+    "The held-out instances share their customer maps with training; only time windows are new",
+    "The test set holds out schedules, not geometry or families. The split takes every fourth instance of each Solomon series, and the instances of a series share their customer coordinates and demands; in the R and RC classes, the two series of a class share them too. A test instance therefore has the same customers, at the same positions and with the same demands, as instances the model was trained on. The exception is C104 from 36 customers on: the loader skips one of its rows, so its later customers are shifted by one place.",
+    "The split rule (src/datasets.py:L331-L333) [2]:",
+    "{quote}for fam in sorted(by_family):{/quote}",
+    "{quote}(test if i % test_every == test_every - 1 else train).append(name){/quote}",
+    "The same customer in a training instance (R101) and a test instance (R104) of the R1 series; only the ready time and due date differ (data/solomon/R1/R101.csv:L3; data/solomon/R1/R104.csv:L3) [2]:",
+    "{quote}2,41,49,10,161,171,10{/quote}",
+    "{quote}2,41,49,10,0,204,10{/quote}",
+    "Customer 2 sits at the same position in the two R series but at different positions in the two C series (data/solomon/R2/R201.csv:L4; data/solomon/C1/C101.csv:L3; data/solomon/C2/C201.csv:L4) [2]:",
+    "{quote}2,41,49,10,707,848,10{/quote}",
+    "{quote}2,45,68,10,912,967,90{/quote}",
+    "{quote}2,52,75,10,311,471,90{/quote}",
+    "The manuscript describes the split and the scope of the claim:",
+    "{quote}family-stratified split of 43 training and 13 held-out test instances{/quote}\n(p. 8, §4) [1]",
+    "{quote}using one configuration across all families{/quote}\n(p. 1, Abstract) [1]",
+    "Impact",
+    "The experiments test a configuration trained on a mixture of all six series and evaluated on new time windows over familiar customer maps, with extrapolation in size. They do not test transfer to an unseen family or geometry. In the R and RC classes, holding out one series would not test it either, because both series share their coordinates; the C1 and C2 series do not.",
+    "Proposed remedy: list the split with its shared geometry, and word the family claim as evaluation on new time windows."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 331,
+     "cited": [
+      331,
+      333
+     ],
+     "text": "for fam in sorted(by_family):",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 333,
+     "cited": [
+      331,
+      333
+     ],
+     "text": "(test if i % test_every == test_every - 1 else train).append(name)",
+     "par": 4
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/R1/R101.csv",
+     "line": 3,
+     "cited": [
+      3,
+      3
+     ],
+     "text": "2,41,49,10,161,171,10",
+     "par": 6
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/R1/R104.csv",
+     "line": 3,
+     "cited": [
+      3,
+      3
+     ],
+     "text": "2,41,49,10,0,204,10",
+     "par": 7
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/R2/R201.csv",
+     "line": 4,
+     "cited": [
+      4,
+      4
+     ],
+     "text": "2,41,49,10,707,848,10",
+     "par": 9
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/C1/C101.csv",
+     "line": 3,
+     "cited": [
+      3,
+      3
+     ],
+     "text": "2,45,68,10,912,967,90",
+     "par": 10
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/C2/C201.csv",
+     "line": 4,
+     "cited": [
+      4,
+      4
+     ],
+     "text": "2,52,75,10,311,471,90",
+     "par": 11
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 4",
+     "text": "family-stratified split of 43 training and 13 held-out test instances",
+     "par": 13
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 1,
+     "section": "Abstract",
+     "text": "using one configuration across all families",
+     "par": 14
+    }
+   ]
+  },
+  {
+   "number": 10,
+   "kind": "insight",
+   "title": "The GNN is trained on the best of single noisy evaluations",
+   "paragraphs": [
+    "The GNN is trained on the best of single noisy evaluations",
+    "Each candidate coarsening in the training pool — heuristic settings and stochastic GNN rollouts — is solved once with the same annealing seed, and the candidate with the highest reward becomes the oracle. The maximum over single noisy evaluations is biased toward candidates that drew a favourable sample, so the labels partly record luck rather than better merges.",
+    "One solver configuration with one seed for all candidates (scripts/gen_labels_rl.py:L119) [2]:",
+    "{quote}cfg = SolverConfig(\"sa\", args.num_reads, args.num_sweeps, seed=args.seed){/quote}",
+    "Each candidate is evaluated once and the best is kept (scripts/gen_labels_rl.py:L133-L137) [2]:",
+    "{quote}for tag, co in build_pool(inst, model, device, args.n_gnn, rng):{/quote}",
+    "{quote}m, snaps = eval_rollout(inst, co, cfg){/quote}",
+    "{quote}if best is None or r > best[0]:{/quote}",
+    "The reward is dominated by binary feasibility indicators of that single run (scripts/gen_labels_rl.py:L51) [2]:",
+    "{quote}r = 2.0 * float(m[\"is_feasible\"]) + 1.0 * float(m[\"pre_feasible\"]){/quote}",
+    "The manuscript reads the outcome as self-improvement:",
+    "{quote}allowing the policy to improve beyond imitation of the\nheuristic pool{/quote}\n(p. 8, §3.5) [1]",
+    "{quote}the model’s own\nrollouts supply the oracle in $46\\%$ of the training cases{/quote}\n(p. 13, §5.4) [1]",
+    "{quote}reducing the rate\nat which the model’s own rollouts win the oracle slot from $35\\%$ to $2\\%${/quote}\n(p. 16, §5.7) [1]",
+    "Impact",
+    "The oracle-win rates and the reward-weighting table measure which candidate won a single draw, not whether the model improves on the heuristic pool. Edge-ranking accuracy against such labels is a weak proxy for coarsening quality.",
+    "Proposed remedy: qualify the self-improvement statements; a claim about the learned score would need labels averaged over several seeds and a test specified in advance."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/gen_labels_rl.py",
+     "line": 119,
+     "cited": [
+      119,
+      119
+     ],
+     "text": "cfg = SolverConfig(\"sa\", args.num_reads, args.num_sweeps, seed=args.seed)",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/gen_labels_rl.py",
+     "line": 133,
+     "cited": [
+      133,
+      137
+     ],
+     "text": "for tag, co in build_pool(inst, model, device, args.n_gnn, rng):",
+     "par": 5
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/gen_labels_rl.py",
+     "line": 134,
+     "cited": [
+      133,
+      137
+     ],
+     "text": "m, snaps = eval_rollout(inst, co, cfg)",
+     "par": 6
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/gen_labels_rl.py",
+     "line": 136,
+     "cited": [
+      133,
+      137
+     ],
+     "text": "if best is None or r > best[0]:",
+     "par": 7
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/gen_labels_rl.py",
+     "line": 51,
+     "cited": [
+      51,
+      51
+     ],
+     "text": "r = 2.0 * float(m[\"is_feasible\"]) + 1.0 * float(m[\"pre_feasible\"])",
+     "par": 9
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 3.5",
+     "text": "allowing the policy to improve beyond imitation of the\nheuristic pool",
+     "par": 11
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 13,
+     "section": "section 5.4",
+     "text": "the model’s own\nrollouts supply the oracle in $46\\%$ of the training cases",
+     "par": 12
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 16,
+     "section": "section 5.7",
+     "text": "reducing the rate\nat which the model’s own rollouts win the oracle slot from $35\\%$ to $2\\%$",
+     "par": 13
+    }
+   ]
+  },
+  {
+   "number": 11,
+   "kind": "recommendation",
+   "title": "Every GNN comparison should be recomputed from one released script, per size and per base instance",
+   "paragraphs": [
+    "Every GNN comparison should be recomputed from one released script, per size and per base instance",
+    "The published comparisons cannot be reproduced as stated: the significant result is one one-sided test over cells pooled from two sizes, with seeds averaged although the manuscript promises a median, and no script in the release produces the seven-size headline.",
+    "The script averages seeds per cell and runs one one-sided test over both sizes (scripts/run_scaling_100.py:L53, L57) [2]:",
+    "{quote}piv = (df.groupby([\"instance\", \"N\", \"condition\"])[\"is_feasible\"].mean(){/quote}",
+    "{quote}_, p = wilcoxon(x, y, alternative=\"greater\"){/quote}",
+    "Section 4 describes a different aggregation of seeds:",
+    "{quote}take the median across seeds to obtain one value per\ninstance before forming pairs{/quote}\n(p. 8, §4) [1]",
+    "Proposed remedy: compute every reported comparison from one released script, per size and per base instance, with two-sided tests and heuristic-fixed as the primary comparator."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 53,
+     "cited": [
+      53,
+      53
+     ],
+     "text": "piv = (df.groupby([\"instance\", \"N\", \"condition\"])[\"is_feasible\"].mean()",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 57,
+     "cited": [
+      57,
+      57
+     ],
+     "text": "_, p = wilcoxon(x, y, alternative=\"greater\")",
+     "par": 4
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 4",
+     "text": "take the median across seeds to obtain one value per\ninstance before forming pairs",
+     "par": 6
+    }
+   ]
+  },
+  {
+   "number": 12,
+   "kind": "recommendation",
+   "title": "Coarsening must be made deterministic before any comparison is rerun",
+   "paragraphs": [
+    "Coarsening must be made deterministic before any comparison is rerun",
+    "With identical inputs and seeds, ties between equal scores follow the per-process hash salt, which the seed function cannot set. Every comparison between arms inherits that dependence.",
+    "The sort uses only the score, neighbours are visited in set order, and the salt is set after start-up (src/coarsening.py:L225, L212; src/utils.py:L26) [2]:",
+    "{quote}sorted_edges = sorted(G.edges, key=lambda e: e.D_ij){/quote}",
+    "{quote}for nb in nbrs:{/quote}",
+    "{quote}os.environ[\"PYTHONHASHSEED\"] = str(seed){/quote}",
+    "Proposed remedy: a total sort key, sorted neighbour iteration and the salt fixed before the interpreter starts, followed by a rerun of the published comparisons."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 225,
+     "cited": [
+      225,
+      225
+     ],
+     "text": "sorted_edges = sorted(G.edges, key=lambda e: e.D_ij)",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 212,
+     "cited": [
+      212,
+      212
+     ],
+     "text": "for nb in nbrs:",
+     "par": 4
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/utils.py",
+     "line": 26,
+     "cited": [
+      26,
+      26
+     ],
+     "text": "os.environ[\"PYTHONHASHSEED\"] = str(seed)",
+     "par": 5
+    }
+   ]
+  },
+  {
+   "number": 13,
+   "kind": "recommendation",
+   "title": "Repair after expansion and fragment super-nodes should be introduced as named method changes",
+   "paragraphs": [
+    "Repair after expansion and fragment super-nodes should be introduced as named method changes",
+    "Expanding routes around midpoint super-nodes can break time windows that held on the coarse graph, and nothing repairs the expanded route before feasibility is measured.",
+    "The super-node is placed at the midpoint, and feasibility is computed right after expansion (src/coarsening.py:L267; src/experiment.py:L81, L83) [2]:",
+    "{quote}sid, (ni.x + nj.x) / 2, (ni.y + nj.y) / 2, s_ij, e_prime, l_prime,{/quote}",
+    "{quote}routes = coarsener.inflate_route(routes){/quote}",
+    "{quote}metrics = calculate_route_metrics(metrics_graph, routes, depot_id, capacity){/quote}",
+    "Proposed remedy: a repair after expansion, or super-nodes that keep the entry and exit of the pair, introduced as named method changes and reported beside the published pipeline."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 267,
+     "cited": [
+      267,
+      267
+     ],
+     "text": "sid, (ni.x + nj.x) / 2, (ni.y + nj.y) / 2, s_ij, e_prime, l_prime,",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 81,
+     "cited": [
+      81,
+      81
+     ],
+     "text": "routes = coarsener.inflate_route(routes)",
+     "par": 4
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 83,
+     "cited": [
+      83,
+      83
+     ],
+     "text": "metrics = calculate_route_metrics(metrics_graph, routes, depot_id, capacity)",
+     "par": 5
+    }
+   ]
+  },
+  {
+   "number": 14,
+   "kind": "recommendation",
+   "title": "Raw solution quality should be measured on the original instance",
+   "paragraphs": [
+    "Raw solution quality should be measured on the original instance",
+    "The pre-repair metrics are taken on each arm's own coarse problem and omit the return to the depot, so they compare different problems and use a different feasibility definition from the final metric.",
+    "The pre-repair report is taken before expansion, and the counter stops at the last customer (src/experiment.py:L76; src/solvers.py:L120) [2]:",
+    "{quote}pre = sol.report(sol.raw_solution)  # pre-repair SA quality (int space){/quote}",
+    "{quote}for idx in range(len(route) - 1):{/quote}",
+    "The manuscript compares such numbers between samplers:",
+    "{quote}Simulated annealing reaches\n$79\\%$ pre-repair feasibility on the same coarsened QUBOs{/quote}\n(p. 19, §6.3) [1]",
+    "Proposed remedy: score the expanded raw sample on the original instance with the evaluator of the final metric, counting the return to the depot."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/experiment.py",
+     "line": 76,
+     "cited": [
+      76,
+      76
+     ],
+     "text": "pre = sol.report(sol.raw_solution)  # pre-repair SA quality (int space)",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/solvers.py",
+     "line": 120,
+     "cited": [
+      120,
+      120
+     ],
+     "text": "for idx in range(len(route) - 1):",
+     "par": 4
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 19,
+     "section": "section 6.3",
+     "text": "Simulated annealing reaches\n$79\\%$ pre-repair feasibility on the same coarsened QUBOs",
+     "par": 6
+    }
+   ]
+  },
+  {
+   "number": 15,
+   "kind": "recommendation",
+   "title": "Algorithm 1 and Eq. (1)-(2) should describe the ranking, ties and expansion as implemented",
+   "paragraphs": [
+    "Algorithm 1 and Eq. (1)–(2) should describe the ranking, ties and expansion as implemented",
+    "The method section leaves open or misstates three things the code fixes: the orientation in which a pair is scored, the rule for equal scores, and what expansion preserves.",
+    "The score is evaluated in the stored edge orientation and the merge order is chosen afterwards (src/coarsening.py:L156, L245) [2]:",
+    "{quote}ni = graph.nodes[edge.u_id]{/quote}",
+    "{quote}pi_order, _ = self._order_by_slack(ni, nj){/quote}",
+    "The text claims for Eq. (2) a property that holds only for the internal leg:",
+    "{quote}preserves distance consistency after inflation{/quote}\n(p. 4, §3.1, after Eq. (2)) [1]",
+    "Proposed remedy: state the scoring orientation, the tie rule and the meaning of the β term, and restrict the distance sentence to the internal leg."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 156,
+     "cited": [
+      156,
+      156
+     ],
+     "text": "ni = graph.nodes[edge.u_id]",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/coarsening.py",
+     "line": 245,
+     "cited": [
+      245,
+      245
+     ],
+     "text": "pi_order, _ = self._order_by_slack(ni, nj)",
+     "par": 4
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 4,
+     "section": "section 3.1, after Eq. (2)",
+     "text": "preserves distance consistency after inflation",
+     "par": 6
+    }
+   ]
+  },
+  {
+   "number": 16,
+   "kind": "recommendation",
+   "title": "The contribution statements should credit tuning-free coarsening to the fixed configuration unless a benefit of the learned score is shown",
+   "paragraphs": [
+    "The contribution statements should credit tuning-free coarsening to the fixed configuration unless a benefit of the learned score is shown",
+    "The manuscript attributes to learning a benefit that its own untuned fixed configuration also delivers, and leads with a margin that rests on very few instances.",
+    "The manuscript credits the learned policy with the tuning-free result:",
+    "{quote}The\nlearned policy thus removes family-specific tuning{/quote}\n(p. 13, §5.4) [1]",
+    "It leads the abstract with a margin of very few instances:",
+    "{quote}it achieves 100% feasibility across all Solomon families{/quote}\n(p. 1, Abstract) [1]",
+    "The Conclusion compares with the tuned heuristic:",
+    "{quote}preserves feasibility more often than the family-tuned heuristic over\n$N{=}10$–$100${/quote}\n(p. 21, §9) [1]",
+    "Proposed remedy: once the comparisons are recomputed, name heuristic-fixed as the baseline and credit tuning-free coarsening to the fixed settings unless the learned score is shown to add to it."
+   ],
+   "quotes": [
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 13,
+     "section": "section 5.4",
+     "text": "The\nlearned policy thus removes family-specific tuning",
+     "par": 3
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 1,
+     "section": "Abstract",
+     "text": "it achieves 100% feasibility across all Solomon families",
+     "par": 5
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 21,
+     "section": "section 9",
+     "text": "preserves feasibility more often than the family-tuned heuristic over\n$N{=}10$–$100$",
+     "par": 7
+    }
+   ]
+  },
+  {
+   "number": 17,
+   "kind": "recommendation",
+   "title": "A claim about the learned score needs a test specified in advance, with de-noised labels and matched QUBO size",
+   "paragraphs": [
+    "A claim about the learned score needs a test specified in advance, with de-noised labels and matched QUBO size",
+    "The current labels select the best of single noisy evaluations, so a model trained on them cannot be expected to show a benefit of learning beyond selection noise.",
+    "Every candidate is solved once with the same seed, and the best is kept (scripts/gen_labels_rl.py:L119, L136) [2]:",
+    "{quote}cfg = SolverConfig(\"sa\", args.num_reads, args.num_sweeps, seed=args.seed){/quote}",
+    "{quote}if best is None or r > best[0]:{/quote}",
+    "The manuscript reads the outcome as improvement:",
+    "{quote}allowing the policy to improve beyond imitation of the\nheuristic pool{/quote}\n(p. 8, §3.5) [1]",
+    "Proposed remedy: labels averaged over several seeds and a comparison with heuristic-fixed at matched QUBO size, specified before it is run."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/gen_labels_rl.py",
+     "line": 119,
+     "cited": [
+      119,
+      119
+     ],
+     "text": "cfg = SolverConfig(\"sa\", args.num_reads, args.num_sweeps, seed=args.seed)",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/gen_labels_rl.py",
+     "line": 136,
+     "cited": [
+      136,
+      136
+     ],
+     "text": "if best is None or r > best[0]:",
+     "par": 4
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 3.5",
+     "text": "allowing the policy to improve beyond imitation of the\nheuristic pool",
+     "par": 6
+    }
+   ]
+  },
+  {
+   "number": 18,
+   "kind": "recommendation",
+   "title": "The family claim should be bounded to what the split tests",
+   "paragraphs": [
+    "The family claim should be bounded to what the split tests",
+    "The test instances share their customer coordinates and demands with training instances of the same class, so the experiments show new time windows on familiar geometry, not transfer to unseen families.",
+    "The same customer in a training instance, R101, and in a test instance, R104; only the ready time and due date differ (data/solomon/R1/R101.csv:L3; data/solomon/R1/R104.csv:L3) [2]:",
+    "{quote}2,41,49,10,161,171,10{/quote}",
+    "{quote}2,41,49,10,0,204,10{/quote}",
+    "The abstract states the scope as:",
+    "{quote}using one configuration across all families{/quote}\n(p. 1, Abstract) [1]",
+    "Proposed remedy: list the training and test instances with their shared geometry, and word the family claim as evaluation on new time windows."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/R1/R101.csv",
+     "line": 3,
+     "cited": [
+      3,
+      3
+     ],
+     "text": "2,41,49,10,161,171,10",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/R1/R104.csv",
+     "line": 3,
+     "cited": [
+      3,
+      3
+     ],
+     "text": "2,41,49,10,0,204,10",
+     "par": 4
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 1,
+     "section": "Abstract",
+     "text": "using one configuration across all families",
+     "par": 6
+    }
+   ]
+  },
+  {
+   "number": 19,
+   "kind": "insight",
+   "title": "One test instance is loaded with a customer missing, because the loader silently skips a malformed data row",
+   "paragraphs": [
+    "One test instance is loaded with a customer missing, because the loader silently skips a malformed data row",
+    "In the authors' data file for C104, one of the 13 test instances, row 38 is malformed: its ready-time field holds \"0.00    1\", which is not a number. The loader converts each field to a number and, when that fails, skips the row without a warning. C104 therefore enters every experiment with 99 customers instead of 100.",
+    "The malformed row (data/solomon/C1/C104.csv:L38) [2]:",
+    "{quote}37,5,45,10,0.00    1,110,90{/quote}",
+    "The loader skips any row that fails to parse (src/datasets.py:L210, L218-L219) [2]:",
+    "{quote}rows.append([{/quote}",
+    "{quote}except (KeyError, ValueError):{/quote}",
+    "{quote}continue{/quote}",
+    "The self-check that would catch a short instance tests only six sample instances, not C104 (src/datasets.py:L414, L420) [2]:",
+    "{quote}sample = [\"C101\", \"R101\", \"RC101\", \"C201\", \"R201\", \"RC201\"]{/quote}",
+    "{quote}assert inst.n_customers == 100, f\"{name}: expected 100 customers, got {inst.n_customers}\"{/quote}",
+    "Truncation keeps the first N rows by position (src/datasets.py:L135) [2]:",
+    "{quote}sl = slice(0, n + 1)  # keep depot (0) + first n customers{/quote}",
+    "The manuscript describes the size series as prefixes of the benchmark instances:",
+    "{quote}we retain\nthe first $N$ customers for $N=5$ through the complete $N=100$ instance{/quote}\n(p. 8, §4) [1]",
+    "Impact",
+    "The dropped row is the 36th customer. For every size N ≥ 36 — at the evaluated sizes 40, 50, 60 and 80 — C104 is not the first N customers of the Solomon instance: one customer is missing and the next one in the file takes its place. At N = 100 the instance is excluded altogether, because the scaling script keeps only instances with at least N customers (scripts/run_scaling_100.py:L32) [2]:",
+    "{quote}insts = [n for n in test if load_solomon(n).n_customers >= N]{/quote}",
+    "This is why the large-N comparison has 25 pairs rather than 26, and the all-size comparison 90 rather than 91. The other 55 instances load with 100 customers each. How much the altered C104 changes any reported number has not been measured.",
+    "Origin",
+    "The malformed row is inherited: the same line is in the predecessor's data from its first version (solomon_dataset/C1/C104.csv:L38) [3]. Skipping it silently is a property of the GNN repository's loader.",
+    "Proposed remedy: restore the row from an authoritative copy of the benchmark, make the loader fail on rows it cannot parse, and rerun C104."
+   ],
+   "quotes": [
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "data/solomon/C1/C104.csv",
+     "line": 38,
+     "cited": [
+      38,
+      38
+     ],
+     "text": "37,5,45,10,0.00    1,110,90",
+     "par": 3
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 210,
+     "cited": [
+      210,
+      210
+     ],
+     "text": "rows.append([",
+     "par": 5
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 218,
+     "cited": [
+      218,
+      219
+     ],
+     "text": "except (KeyError, ValueError):",
+     "par": 6
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 219,
+     "cited": [
+      218,
+      219
+     ],
+     "text": "continue",
+     "par": 7
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 414,
+     "cited": [
+      414,
+      414
+     ],
+     "text": "sample = [\"C101\", \"R101\", \"RC101\", \"C201\", \"R201\", \"RC201\"]",
+     "par": 9
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 420,
+     "cited": [
+      420,
+      420
+     ],
+     "text": "assert inst.n_customers == 100, f\"{name}: expected 100 customers, got {inst.n_customers}\"",
+     "par": 10
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "src/datasets.py",
+     "line": 135,
+     "cited": [
+      135,
+      135
+     ],
+     "text": "sl = slice(0, n + 1)  # keep depot (0) + first n customers",
+     "par": 12
+    },
+    {
+     "kind": "article",
+     "src": 1,
+     "page": 8,
+     "section": "section 4",
+     "text": "we retain\nthe first $N$ customers for $N=5$ through the complete $N=100$ instance",
+     "par": 14
+    },
+    {
+     "kind": "code",
+     "src": 2,
+     "path": "scripts/run_scaling_100.py",
+     "line": 32,
+     "cited": [
+      32,
+      32
+     ],
+     "text": "insts = [n for n in test if load_solomon(n).n_customers >= N]",
+     "par": 17
+    }
+   ]
+  }
+ ],
+ "predecessor_pointers": [
+  {
+   "remark": 1,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 272,
+   "hi": 278
+  },
+  {
+   "remark": 1,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 362,
+   "hi": 362
+  },
+  {
+   "remark": 1,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 405,
+   "hi": 405
+  },
+  {
+   "remark": 1,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 436,
+   "hi": 436
+  },
+  {
+   "remark": 1,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 462,
+   "hi": 463
+  },
+  {
+   "remark": 2,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 272,
+   "hi": 272
+  },
+  {
+   "remark": 2,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 436,
+   "hi": 436
+  },
+  {
+   "remark": 3,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 362,
+   "hi": 362
+  },
+  {
+   "remark": 3,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 405,
+   "hi": 405
+  },
+  {
+   "remark": 4,
+   "src": 3,
+   "path": "graph_coarsening.py",
+   "lo": 462,
+   "hi": 463
+  },
+  {
+   "remark": 19,
+   "src": 3,
+   "path": "solomon_dataset/C1/C104.csv",
+   "lo": 38,
+   "hi": 38
+  }
+ ]
+}

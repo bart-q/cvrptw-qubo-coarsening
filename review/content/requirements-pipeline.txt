@@ -1,0 +1,13 @@
+numpy==1.26.4
+pandas==3.0.6
+scipy==1.17.1
+matplotlib==3.11.2
+networkx==3.6.1
+tqdm==4.70.1
+pyyaml==6.0.3
+dimod==0.12.22
+dwave-samplers==1.8.0
+minorminer==0.2.21
+dwave-networkx==0.8.19
+ortools==9.12.4544
+torch-geometric==2.8.0
