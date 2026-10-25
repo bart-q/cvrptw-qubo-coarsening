@@ -43,7 +43,7 @@ The eight files in `content/` are runtime inputs, not optional documentation. Th
 
    Alternatively, click the badge below:
 
-   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/bart-q/cvrptw-qubo-coarsening/blob/main/review/cvrptw_gnn_results_audit.ipynb)
+   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/bart-q/cvrptw-qubo-coarsening/blob/review/review/cvrptw_gnn_results_audit.ipynb)
 
 2. In the Files panel, upload all eight files from `review/content/` into `/content`. Alternatively, place them in `/content/content`.
 3. In the second code cell, choose the execution mode and grid:
