@@ -39,7 +39,7 @@ The eight files in `content/` are runtime inputs, not optional documentation. Th
 
 ## Running in Google Colab
 
-1. Open `cvrptw_gnn_results_audit.ipynb` in Colab using File → Open notebook → GitHub.
+1. Open `cvrptw_gnn_results_audit.ipynb` in Colab using File → Open notebook → GitHub. Select the `review` branch and open `review/cvrptw_gnn_results_audit.ipynb`.
 
    Alternatively, click the badge below:
 
@@ -68,7 +68,8 @@ Start Jupyter with `review/` as the working directory, open the notebook, choose
 For command-line execution, with Jupyter available and the notebook switches already set:
 
 ```bash
-cd review
+git clone --branch review --single-branch https://github.com/bart-q/cvrptw-qubo-coarsening.git
+cd cvrptw-qubo-coarsening/review
 jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=-1 \
     cvrptw_gnn_results_audit.ipynb --output executed.ipynb
 ```
