@@ -19,6 +19,10 @@ simulated-annealing backend, with two contributions:
 All experiments run on a classical simulated-annealing sampler and OR-Tools
 serves as a classical reference; no physical quantum hardware is used.
 
+## Computational audit
+
+An independent computational audit of the reported GNN results is available in [review/README.md](review/README.md).
+
 ## Installation
 
 ```bash
